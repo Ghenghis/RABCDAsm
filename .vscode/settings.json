@@ -1,0 +1,27 @@
+{
+    "github.copilot.enable": {
+        "*": true,
+        "python": true,
+        "plaintext": false,
+        "markdown": false
+    },
+    "github.copilot.inlineSuggest.enable": true,
+    "github.copilot.advanced": {
+        "language.python.suffixPercent": 50,
+        "language.python.completionMode": "IntelliCode"
+    },
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "python.analysis.typeCheckingMode": "basic",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.banditEnabled": true
+}

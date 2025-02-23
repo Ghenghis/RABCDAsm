@@ -1,0 +1,37 @@
+{
+  "languages": [
+    "python",
+    "actionscript",
+    "javascript"
+  ],
+  "patterns": {
+    "src/**/*.py": {
+      "context": "RABCDAsm is an ActionScript Bytecode Disassembler and Assembler. This tool helps analyze and modify Flash SWF files and their ABC (ActionScript Bytecode) content.",
+      "suggestions": {
+        "style": "detailed",
+        "tests": true
+      }
+    },
+    "Tools/**/*.py": {
+      "context": "These are utility tools for RABCDAsm, focusing on SWF analysis, ABC manipulation, and Flash file processing.",
+      "suggestions": {
+        "style": "detailed",
+        "tests": true
+      }
+    }
+  },
+  "conventions": {
+    "python": {
+      "docstring": "google",
+      "typing": true,
+      "async": true,
+      "testing": "pytest"
+    }
+  },
+  "ignore": [
+    "**/__pycache__/**",
+    "**/tests/data/**",
+    "**/build/**",
+    "**/dist/**"
+  ]
+}
