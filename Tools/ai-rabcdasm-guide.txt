@@ -1,0 +1,277 @@
+# AI-Powered RABCDAsm Integration Guide
+
+## Table of Contents
+1. Setup and Installation
+2. Configuration
+3. Model Integration
+4. Usage Examples
+5. Automation Tools
+6. Function Reference
+
+## 1. Setup and Installation
+
+### Dependencies
+```bash
+# Install required Python packages
+pip install openai anthropic PyQt6 python-dotenv requests ollama
+
+# Clone RABCDAsm repository
+git clone https://github.com/CyberShadow/RABCDAsm.git
+cd RABCDAsm
+dmd -run build_rabcdasm.d
+
+# Set up environment file
+echo "OPENAI_API_KEY=your_key_here" > .env
+echo "ANTHROPIC_API_KEY=your_key_here" >> .env
+```
+
+### Directory Structure
+```
+project/
+├── .env                    # API keys and configuration
+├── ai_models/             # AI model configurations
+├── scripts/               # RABCDAsm automation scripts
+├── libs/                  # RABCDAsm binaries
+└── output/                # Generated files
+```
+
+## 2. Configuration
+
+### config.py
+```python
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# API Configuration
+API_KEYS = {
+    'openai': os.getenv('OPENAI_API_KEY'),
+    'anthropic': os.getenv('ANTHROPIC_API_KEY')
+}
+
+# Local Model Configuration
+LOCAL_MODELS = {
+    'ollama': {
+        'url': 'http://localhost:11434',
+        'models': ['codellama', 'llama2']
+    },
+    'lmstudio': {
+        'url': 'http://localhost:1234',
+        'models': ['local-model']
+    }
+}
+
+# RABCDAsm Configuration
+RABCDASM_PATH = Path('libs/rabcdasm')
+TEMP_DIR = Path('output/temp')
+OUTPUT_DIR = Path('output')
+```
+
+## 3. Model Integration
+
+### ai_controller.py
+```python
+import openai
+import anthropic
+import requests
+from typing import Dict, Any
+
+class AIController:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.setup_clients()
+        
+    def setup_clients(self):
+        """Initialize AI clients"""
+        # Cloud-based models
+        openai.api_key = self.config['API_KEYS']['openai']
+        self.anthropic = anthropic.Client(api_key=self.config['API_KEYS']['anthropic'])
+        
+        # Local models
+        self.ollama_url = self.config['LOCAL_MODELS']['ollama']['url']
+        self.lmstudio_url = self.config['LOCAL_MODELS']['lmstudio']['url']
+        
+    def analyze_code(self, code: str, model: str = 'gpt-4') -> str:
+        """Analyze ActionScript code using specified model"""
+        if model.startswith('gpt'):
+            return self._analyze_with_openai(code, model)
+        elif model.startswith('claude'):
+            return self._analyze_with_claude(code, model)
+        elif model.startswith('ollama'):
+            return self._analyze_with_ollama(code, model)
+        elif model.startswith('lmstudio'):
+            return self._analyze_with_lmstudio(code, model)
+            
+    def generate_modifications(self, analysis: str, model: str = 'gpt-4') -> Dict[str, Any]:
+        """Generate code modifications based on analysis"""
+        prompt = f"Generate modifications for the following analysis:\n{analysis}"
+        return self.get_completion(prompt, model)
+        
+    def _analyze_with_openai(self, code: str, model: str) -> str:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are an expert in ActionScript and SWF analysis."},
+                {"role": "user", "content": f"Analyze this code:\n{code}"}
+            ]
+        )
+        return response.choices[0].message['content']
+        
+    def _analyze_with_claude(self, code: str, model: str) -> str:
+        response = self.anthropic.messages.create(
+            model=model,
+            messages=[{
+                "role": "user",
+                "content": f"Analyze this ActionScript code:\n{code}"
+            }]
+        )
+        return response.content
+        
+    def _analyze_with_ollama(self, code: str, model: str) -> str:
+        response = requests.post(
+            f"{self.ollama_url}/api/generate",
+            json={
+                "model": model,
+                "prompt": f"Analyze this code:\n{code}"
+            }
+        )
+        return response.json()['response']
+        
+    def _analyze_with_lmstudio(self, code: str, model: str) -> str:
+        response = requests.post(
+            f"{self.lmstudio_url}/v1/completions",
+            json={
+                "prompt": f"Analyze this code:\n{code}",
+                "model": model
+            }
+        )
+        return response.json()['choices'][0]['text']
+```
+
+## 4. Usage Examples
+
+### Example 1: Basic Analysis
+```python
+from ai_controller import AIController
+from config import *
+
+# Initialize AI controller
+ai = AIController({
+    'API_KEYS': API_KEYS,
+    'LOCAL_MODELS': LOCAL_MODELS
+})
+
+# Analyze SWF file
+def analyze_swf(swf_path: str, model: str = 'gpt-4'):
+    # Extract ABC
+    abc_files = rabcdasm.extract_abc(swf_path)
+    
+    # Analyze each ABC file
+    for abc_file in abc_files:
+        with open(abc_file, 'r') as f:
+            code = f.read()
+            analysis = ai.analyze_code(code, model)
+            print(f"Analysis of {abc_file}:")
+            print(analysis)
+```
+
+### Example 2: Code Modification
+```python
+def modify_actionscript(swf_path: str, modifications: Dict[str, Any]):
+    # Extract and disassemble
+    abc_files = rabcdasm.extract_abc(swf_path)
+    for abc_file in abc_files:
+        asm_dir = rabcdasm.disassemble_abc(abc_file)
+        
+        # Apply modifications
+        for file in Path(asm_dir).glob('*.asasm'):
+            apply_modifications(file, modifications)
+            
+        # Reassemble
+        rabcdasm.assemble_abc(str(file))
+```
+
+## 5. Automation Tools
+
+### automation.py
+```python
+class RABCDAsmAutomation:
+    def __init__(self, ai_controller: AIController):
+        self.ai = ai_controller
+        
+    def batch_process(self, swf_files: List[str], model: str = 'gpt-4'):
+        """Process multiple SWF files"""
+        for swf_file in swf_files:
+            self.process_single_swf(swf_file, model)
+            
+    def process_single_swf(self, swf_file: str, model: str):
+        """Process a single SWF file with AI assistance"""
+        # Extract and analyze
+        abc_files = rabcdasm.extract_abc(swf_file)
+        analyses = []
+        
+        for abc_file in abc_files:
+            with open(abc_file, 'r') as f:
+                code = f.read()
+                analysis = self.ai.analyze_code(code, model)
+                analyses.append(analysis)
+                
+        # Generate modifications
+        modifications = self.ai.generate_modifications('\n'.join(analyses))
+        
+        # Apply modifications
+        self.apply_modifications(swf_file, modifications)
+```
+
+## 6. Function Reference
+
+### RABCDAsm Operations
+```python
+# Extract ABC from SWF
+rabcdasm.extract_abc(swf_path: str) -> List[str]
+
+# Disassemble ABC to ASM
+rabcdasm.disassemble_abc(abc_path: str) -> str
+
+# Assemble ASM to ABC
+rabcdasm.assemble_abc(asasm_path: str) -> str
+
+# Replace ABC in SWF
+rabcdasm.replace_abc(swf_path: str, abc_index: int, abc_path: str) -> None
+```
+
+### AI Operations
+```python
+# Analyze code with AI
+ai.analyze_code(code: str, model: str) -> str
+
+# Generate modifications
+ai.generate_modifications(analysis: str, model: str) -> Dict[str, Any]
+
+# Get direct completion
+ai.get_completion(prompt: str, model: str) -> str
+```
+
+To use this system:
+
+1. Set up the environment and install dependencies
+2. Configure API keys and local model endpoints
+3. Initialize the AI controller with desired models
+4. Use the automation tools for batch processing
+5. Or use individual functions for specific tasks
+
+Example workflow:
+```python
+# Initialize
+ai = AIController(config)
+automation = RABCDAsmAutomation(ai)
+
+# Process single file
+automation.process_single_swf('game.swf', model='claude-3')
+
+# Batch process
+automation.batch_process(['game1.swf', 'game2.swf'], model='ollama/codellama')
+```

@@ -1,0 +1,259 @@
+import os
+import json
+import hashlib
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Set
+from datetime import datetime
+from dataclasses import dataclass, asdict
+
+@dataclass
+class SystemState:
+    """Track system state and modifications"""
+    modified_files: Set[str]
+    active_components: Dict[str, bool]
+    current_tasks: List[str]
+    dependencies: Dict[str, List[str]]
+    last_backup: str
+
+class RABCDAsmManager:
+    """System manager for RABCDAsm integration"""
+    
+    def __init__(self, project_root: str):
+        self.project_root = Path(project_root)
+        self.state_file = self.project_root / "system_state.json"
+        self.components_file = self.project_root / "Components_Missing.txt"
+        self.log_file = self.project_root / "system.log"
+        
+        # Setup logging
+        logging.basicConfig(
+            filename=self.log_file,
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        self.logger = logging.getLogger('RABCDAsmManager')
+        
+        # Initialize state
+        self.state = self._load_state()
+        self._verify_system_integrity()
+        
+    def _load_state(self) -> SystemState:
+        """Load or create system state"""
+        if self.state_file.exists():
+            try:
+                with open(self.state_file, 'r') as f:
+                    data = json.load(f)
+                return SystemState(
+                    modified_files=set(data['modified_files']),
+                    active_components=data['active_components'],
+                    current_tasks=data['current_tasks'],
+                    dependencies=data['dependencies'],
+                    last_backup=data['last_backup']
+                )
+            except Exception as e:
+                self.logger.error(f"Error loading state: {e}")
+                return self._create_initial_state()
+        return self._create_initial_state()
+    
+    def _create_initial_state(self) -> SystemState:
+        """Create initial system state"""
+        return SystemState(
+            modified_files=set(),
+            active_components={
+                'cli_interface': True,
+                'file_processor': True,
+                'resource_manager': True
+            },
+            current_tasks=[],
+            dependencies={
+                'cli_interface': ['file_processor'],
+                'file_processor': ['resource_manager']
+            },
+            last_backup=datetime.now().isoformat()
+        )
+    
+    def _verify_system_integrity(self):
+        """Verify system integrity and dependencies"""
+        # Check project structure
+        required_dirs = ['tools', 'resources', 'logs', 'backup']
+        for dir_name in required_dirs:
+            dir_path = self.project_root / dir_name
+            if not dir_path.exists():
+                self.logger.warning(f"Creating missing directory: {dir_name}")
+                dir_path.mkdir(parents=True)
+        
+        # Verify components
+        self._update_components_status()
+        
+        # Check dependencies
+        self._verify_dependencies()
+    
+    def _update_components_status(self):
+        """Update status of missing components"""
+        missing = []
+        for component, active in self.state.active_components.items():
+            if not active:
+                missing.append(component)
+        
+        if missing:
+            with open(self.components_file, 'w') as f:
+                f.write("Missing Components:\n")
+                for component in missing:
+                    f.write(f"- {component}\n")
+    
+    def _verify_dependencies(self):
+        """Verify all dependencies are met"""
+        for component, deps in self.state.dependencies.items():
+            if component in self.state.active_components:
+                for dep in deps:
+                    if not self.state.active_components.get(dep, False):
+                        self.logger.error(
+                            f"Dependency error: {component} requires {dep}")
+    
+    def track_file_modification(self, file_path: str):
+        """Track modified files"""
+        abs_path = str(Path(file_path).resolve())
+        self.state.modified_files.add(abs_path)
+        self.logger.info(f"Tracked modification: {abs_path}")
+        self._save_state()
+    
+    def start_task(self, task_name: str):
+        """Start tracking a new task"""
+        self.state.current_tasks.append(task_name)
+        self.logger.info(f"Started task: {task_name}")
+        self._save_state()
+    
+    def complete_task(self, task_name: str):
+        """Mark task as complete"""
+        if task_name in self.state.current_tasks:
+            self.state.current_tasks.remove(task_name)
+            self.logger.info(f"Completed task: {task_name}")
+            self._save_state()
+    
+    def create_backup(self):
+        """Create backup of current state"""
+        backup_dir = self.project_root / "backup"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"state_backup_{timestamp}.json"
+        
+        try:
+            with open(backup_path, 'w') as f:
+                json.dump(asdict(self.state), f, indent=2)
+            self.state.last_backup = datetime.now().isoformat()
+            self._save_state()
+            self.logger.info(f"Created backup: {backup_path}")
+        except Exception as e:
+            self.logger.error(f"Backup failed: {e}")
+    
+    def _save_state(self):
+        """Save current state to file"""
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump({
+                    'modified_files': list(self.state.modified_files),
+                    'active_components': self.state.active_components,
+                    'current_tasks': self.state.current_tasks,
+                    'dependencies': self.state.dependencies,
+                    'last_backup': self.state.last_backup
+                }, f, indent=2)
+        except Exception as e:
+            self.logger.error(f"Error saving state: {e}")
+    
+    def validate_file_operation(self, file_path: str, operation: str) -> bool:
+        """Validate file operations before execution"""
+        path = Path(file_path)
+        
+        if operation == 'create':
+            if path.exists():
+                self.logger.warning(f"File already exists: {file_path}")
+                return False
+        elif operation == 'modify':
+            if not path.exists():
+                self.logger.error(f"File not found: {file_path}")
+                return False
+            if str(path) not in self.state.modified_files:
+                self.logger.warning(
+                    f"File not tracked for modification: {file_path}")
+                return False
+        elif operation == 'delete':
+            if not path.exists():
+                self.logger.error(f"Cannot delete, file not found: {file_path}")
+                return False
+        
+        return True
+    
+    def get_component_status(self) -> Dict[str, bool]:
+        """Get status of all components"""
+        return self.state.active_components.copy()
+    
+    def get_active_tasks(self) -> List[str]:
+        """Get list of active tasks"""
+        return self.state.current_tasks.copy()
+    
+    def get_modified_files(self) -> Set[str]:
+        """Get set of modified files"""
+        return self.state.modified_files.copy()
+
+# Integration with main application
+class RABCDAsmIntegration:
+    """Integration manager for RABCDAsm and GUI components"""
+    
+    def __init__(self, manager: RABCDAsmManager):
+        self.manager = manager
+        self.logger = logging.getLogger('RABCDAsmIntegration')
+    
+    def process_command(self, command: str) -> bool:
+        """Process CLI commands with system tracking"""
+        self.manager.start_task(f"CLI: {command}")
+        
+        try:
+            # Validate command
+            if not self._validate_command(command):
+                return False
+            
+            # Execute command
+            result = self._execute_command(command)
+            
+            # Track modifications
+            if result and 'output_file' in result:
+                self.manager.track_file_modification(result['output_file'])
+            
+            self.manager.complete_task(f"CLI: {command}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Command failed: {command} - {str(e)}")
+            return False
+    
+    def _validate_command(self, command: str) -> bool:
+        """Validate CLI command"""
+        parts = command.split()
+        if not parts:
+            return False
+            
+        valid_commands = {
+            'extract': {'min_args': 1, 'max_args': 2},
+            'disassemble': {'min_args': 1, 'max_args': 2},
+            'assemble': {'min_args': 1, 'max_args': 1},
+            'replace': {'min_args': 3, 'max_args': 3}
+        }
+        
+        cmd = parts[0]
+        if cmd not in valid_commands:
+            self.logger.error(f"Invalid command: {cmd}")
+            return False
+            
+        args = parts[1:]
+        if len(args) < valid_commands[cmd]['min_args']:
+            self.logger.error(f"Too few arguments for {cmd}")
+            return False
+        if len(args) > valid_commands[cmd]['max_args']:
+            self.logger.error(f"Too many arguments for {cmd}")
+            return False
+            
+        return True
+    
+    def _execute_command(self, command: str) -> Optional[Dict]:
+        """Execute RABCDAsm command"""
+        # Command execution logic here
+        return None

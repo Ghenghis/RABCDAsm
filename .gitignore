@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.env.example
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and databases
+*.log
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.swf
+*.zip
+*.7z
+*.hexlic
+Huggingface_Token.txt
+conversation_history.json
+extracted/
+temp/
+*.tmp
+Tools/AS3 Sorcerer/
+Tools/AS3_Sorcerer/
+Tools/Sothink SWF Decompiler/
+Tools/dnSpy64/
+Tools/ffdec_*/
+Tools/flex-sdk/
+Tools/ghidra_*/
+Tools/resource_hacker/
+Tools/temp.*
+
+# Test files
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover

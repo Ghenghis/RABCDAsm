@@ -1,0 +1,70 @@
+{
+    "tools": {
+        "ghidra": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\ghidra_11.3",
+            "version": "11.3",
+            "launch_script": "ghidraRun.bat",
+            "file_types": [
+                ".exe",
+                ".dll",
+                ".bin",
+                ".so"
+            ],
+            "installed": false
+        },
+        "ida": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\ida_pro",
+            "version": "8.3",
+            "launch_script": "ida64.exe",
+            "file_types": [
+                ".exe",
+                ".dll",
+                ".bin",
+                ".so"
+            ],
+            "installed": false
+        },
+        "binary_ninja": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\binary_ninja",
+            "version": "3.5",
+            "launch_script": "binaryninja.exe",
+            "file_types": [
+                ".exe",
+                ".dll",
+                ".bin",
+                ".so"
+            ],
+            "installed": false
+        },
+        "rabcdasm": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\rabcdasm",
+            "version": "1.18",
+            "launch_script": "rabcdasm.exe",
+            "file_types": [
+                ".abc",
+                ".swf"
+            ],
+            "installed": true
+        },
+        "ffdec": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\ffdec_22.0.2",
+            "version": "22.0.2",
+            "launch_script": "ffdec.bat",
+            "file_types": [
+                ".swf"
+            ],
+            "installed": true
+        },
+        "resource_hacker": {
+            "path": "C:\\projects\\RABCDAsm\\Tools\\resource_hacker",
+            "version": "5.1.8",
+            "launch_script": "ResourceHacker.exe",
+            "file_types": [
+                ".exe",
+                ".dll",
+                ".res"
+            ],
+            "installed": true
+        }
+    }
+}

@@ -1,0 +1,382 @@
+import os
+import json
+import shutil
+import hashlib
+import logging
+from pathlib import Path
+from typing import Dict, List, Set, Optional, Tuple
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+from collections import defaultdict
+
+@dataclass
+class BackupMetadata:
+    """Metadata for backup tracking"""
+    timestamp: str
+    files: List[str]
+    hash: str
+    component_state: Dict[str, bool]
+    size: int
+
+class EnhancedBackupSystem:
+    """Enhanced backup system with versioning and integrity checks"""
+    
+    def __init__(self, root_path: str, max_backups: int = 5):
+        self.root = Path(root_path)
+        self.backup_dir = self.root / "backups"
+        self.metadata_file = self.backup_dir / "backup_metadata.json"
+        self.max_backups = max_backups
+        self.logger = logging.getLogger('EnhancedBackupSystem')
+        
+        # Initialize backup directory
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        self._load_metadata()
+        
+    def _load_metadata(self):
+        """Load or initialize backup metadata"""
+        if self.metadata_file.exists():
+            with open(self.metadata_file, 'r') as f:
+                self.metadata = json.load(f)
+        else:
+            self.metadata = {'backups': {}}
+            self._save_metadata()
+            
+    def _save_metadata(self):
+        """Save backup metadata"""
+        with open(self.metadata_file, 'w') as f:
+            json.dump(self.metadata, f, indent=2)
+            
+    def create_backup(self, files: List[str], component_state: Dict[str, bool]) -> str:
+        """Create a new backup with verification"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = self.backup_dir / f"backup_{timestamp}"
+        backup_path.mkdir()
+        
+        total_size = 0
+        file_hashes = []
+        backed_up_files = []
+        
+        # Copy files with verification
+        for file_path in files:
+            try:
+                src = Path(file_path)
+                if not src.exists():
+                    self.logger.warning(f"Skipping missing file: {file_path}")
+                    continue
+                    
+                # Create directory structure
+                rel_path = src.relative_to(self.root)
+                dst = backup_path / rel_path
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Copy and verify
+                shutil.copy2(src, dst)
+                if self._verify_file_copy(src, dst):
+                    file_hash = self._calculate_file_hash(dst)
+                    file_hashes.append(file_hash)
+                    backed_up_files.append(str(rel_path))
+                    total_size += dst.stat().st_size
+                else:
+                    self.logger.error(f"Backup verification failed for: {file_path}")
+                    
+            except Exception as e:
+                self.logger.error(f"Backup failed for {file_path}: {str(e)}")
+                
+        # Create backup metadata
+        backup_hash = hashlib.sha256(''.join(file_hashes).encode()).hexdigest()
+        metadata = BackupMetadata(
+            timestamp=timestamp,
+            files=backed_up_files,
+            hash=backup_hash,
+            component_state=component_state,
+            size=total_size
+        )
+        
+        self.metadata['backups'][timestamp] = asdict(metadata)
+        self._save_metadata()
+        
+        # Cleanup old backups
+        self._cleanup_old_backups()
+        
+        return timestamp
+        
+    def restore_backup(self, timestamp: str) -> bool:
+        """Restore from backup with verification"""
+        if timestamp not in self.metadata['backups']:
+            self.logger.error(f"Backup not found: {timestamp}")
+            return False
+            
+        backup_path = self.backup_dir / f"backup_{timestamp}"
+        if not backup_path.exists():
+            self.logger.error(f"Backup files missing: {timestamp}")
+            return False
+            
+        metadata = self.metadata['backups'][timestamp]
+        
+        # Verify backup integrity
+        if not self._verify_backup_integrity(backup_path, metadata):
+            self.logger.error(f"Backup integrity check failed: {timestamp}")
+            return False
+            
+        # Restore files
+        try:
+            for file_path in metadata['files']:
+                src = backup_path / file_path
+                dst = self.root / file_path
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+                
+                if not self._verify_file_copy(src, dst):
+                    self.logger.error(f"Restore verification failed for: {file_path}")
+                    return False
+                    
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Restore failed: {str(e)}")
+            return False
+            
+    def _verify_backup_integrity(self, backup_path: Path, metadata: Dict) -> bool:
+        """Verify backup integrity"""
+        file_hashes = []
+        for file_path in metadata['files']:
+            full_path = backup_path / file_path
+            if not full_path.exists():
+                return False
+            file_hashes.append(self._calculate_file_hash(full_path))
+            
+        backup_hash = hashlib.sha256(''.join(file_hashes).encode()).hexdigest()
+        return backup_hash == metadata['hash']
+        
+    def _cleanup_old_backups(self):
+        """Remove old backups while keeping important ones"""
+        if len(self.metadata['backups']) <= self.max_backups:
+            return
+            
+        # Sort backups by timestamp
+        sorted_backups = sorted(
+            self.metadata['backups'].items(),
+            key=lambda x: x[1]['timestamp']
+        )
+        
+        # Always keep the most recent backup
+        backups_to_remove = sorted_backups[:-self.max_backups]
+        
+        for timestamp, _ in backups_to_remove:
+            backup_path = self.backup_dir / f"backup_{timestamp}"
+            try:
+                shutil.rmtree(backup_path)
+                del self.metadata['backups'][timestamp]
+            except Exception as e:
+                self.logger.error(f"Failed to remove old backup {timestamp}: {str(e)}")
+                
+        self._save_metadata()
+
+class ComponentTracker:
+    """Enhanced component tracking system"""
+    
+    def __init__(self):
+        self.logger = logging.getLogger('ComponentTracker')
+        self.components = defaultdict(ComponentState)
+        self.dependencies = defaultdict(set)
+        self.status_history = defaultdict(list)
+        
+    def register_component(self, name: str, dependencies: List[str] = None):
+        """Register a new component"""
+        if dependencies:
+            self.dependencies[name].update(dependencies)
+        self._update_component_state(name)
+        
+    def update_status(self, name: str, status: bool):
+        """Update component status"""
+        if name not in self.components:
+            self.register_component(name)
+            
+        component = self.components[name]
+        component.status = status
+        component.last_update = datetime.now()
+        
+        # Update history
+        self.status_history[name].append({
+            'timestamp': datetime.now().isoformat(),
+            'status': status
+        })
+        
+        # Check dependent components
+        self._check_dependencies(name)
+        
+    def get_component_state(self, name: str) -> Optional[Dict]:
+        """Get current state of a component"""
+        if name not in self.components:
+            return None
+            
+        component = self.components[name]
+        return {
+            'status': component.status,
+            'last_update': component.last_update.isoformat(),
+            'dependencies_met': component.dependencies_met,
+            'error_count': component.error_count
+        }
+        
+    def _update_component_state(self, name: str):
+        """Update component state based on dependencies"""
+        component = self.components[name]
+        dependencies_met = True
+        
+        for dep in self.dependencies[name]:
+            if dep not in self.components or not self.components[dep].status:
+                dependencies_met = False
+                break
+                
+        component.dependencies_met = dependencies_met
+        
+    def _check_dependencies(self, name: str):
+        """Check and update dependent components"""
+        for component_name, deps in self.dependencies.items():
+            if name in deps:
+                self._update_component_state(component_name)
+
+@dataclass
+class ComponentState:
+    """State tracking for individual components"""
+    status: bool = False
+    last_update: datetime = datetime.now()
+    dependencies_met: bool = True
+    error_count: int = 0
+    
+class CommandExecutor:
+    """Enhanced command execution system"""
+    
+    def __init__(self, backup_system: EnhancedBackupSystem, component_tracker: ComponentTracker):
+        self.backup_system = backup_system
+        self.component_tracker = component_tracker
+        self.logger = logging.getLogger('CommandExecutor')
+        
+    def execute_command(self, command: str, args: List[str]) -> Tuple[bool, str]:
+        """Execute RABCDAsm command with tracking and validation"""
+        try:
+            # Validate command
+            if not self._validate_command(command, args):
+                return False, "Invalid command or arguments"
+                
+            # Check component status
+            if not self._check_components_status(command):
+                return False, "Required components not ready"
+                
+            # Create pre-execution backup
+            self.backup_system.create_backup(
+                self._get_affected_files(command, args),
+                self.component_tracker.components
+            )
+            
+            # Execute command
+            result = self._run_command(command, args)
+            
+            if result[0]:
+                # Update component status
+                self._update_component_status(command, True)
+            else:
+                # Increment error count
+                self._increment_error_count(command)
+                
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Command execution failed: {str(e)}")
+            self._increment_error_count(command)
+            return False, f"Execution failed: {str(e)}"
+            
+    def _validate_command(self, command: str, args: List[str]) -> bool:
+        """Validate command and arguments"""
+        command_specs = {
+            'extract': {'min_args': 1, 'max_args': 2},
+            'disassemble': {'min_args': 1, 'max_args': 2},
+            'assemble': {'min_args': 1, 'max_args': 1},
+            'replace': {'min_args': 3, 'max_args': 3}
+        }
+        
+        if command not in command_specs:
+            return False
+            
+        spec = command_specs[command]
+        return spec['min_args'] <= len(args) <= spec['max_args']
+        
+    def _get_affected_files(self, command: str, args: List[str]) -> List[str]:
+        """Get list of files that will be affected by command"""
+        affected = []
+        
+        if command in ['extract', 'disassemble', 'assemble']:
+            affected.append(args[0])
+            
+        if command == 'replace':
+            affected.extend([args[0], args[2]])
+            
+        return affected
+        
+    def _run_command(self, command: str, args: List[str]) -> Tuple[bool, str]:
+        """Execute RABCDAsm command"""
+        try:
+            # Map commands to RABCDAsm executables
+            command_map = {
+                'extract': 'abcexport',
+                'disassemble': 'rabcdasm',
+                'assemble': 'rabcasm',
+                'replace': 'abcreplace'
+            }
+            
+            # Build command
+            cmd = [command_map[command]] + args
+            
+            # Execute
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            return True, result.stdout
+            
+        except subprocess.CalledProcessError as e:
+            return False, e.stderr
+            
+    def _check_components_status(self, command: str) -> bool:
+        """Check if required components are ready"""
+        required_components = {
+            'extract': ['file_processor'],
+            'disassemble': ['file_processor', 'abc_handler'],
+            'assemble': ['file_processor', 'abc_handler'],
+            'replace': ['file_processor', 'abc_handler', 'swf_handler']
+        }
+        
+        for component in required_components.get(command, []):
+            state = self.component_tracker.get_component_state(component)
+            if not state or not state['status'] or not state['dependencies_met']:
+                return False
+                
+        return True
+        
+    def _update_component_status(self, command: str, success: bool):
+        """Update component status after command execution"""
+        components = {
+            'extract': ['file_processor'],
+            'disassemble': ['abc_handler'],
+            'assemble': ['abc_handler'],
+            'replace': ['swf_handler']
+        }
+        
+        for component in components.get(command, []):
+            self.component_tracker.update_status(component, success)
+            
+    def _increment_error_count(self, command: str):
+        """Increment error count for affected components"""
+        components = {
+            'extract': ['file_processor'],
+            'disassemble': ['abc_handler'],
+            'assemble': ['abc_handler'],
+            'replace': ['swf_handler']
+        }
+        
+        for component in components.get(command, []):
+            if component in self.component_tracker.components:
+                self.component_tracker.components[component].error_count += 1

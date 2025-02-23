@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<project name="RoboEvony" default="build" basedir=".">
+    <property name="FLEX_HOME" value="${basedir}/flex_sdk"/>
+    <property name="src.dir" value="${basedir}/src"/>
+    <property name="bin.dir" value="${basedir}/bin"/>
+    
+    <target name="init">
+        <mkdir dir="${bin.dir}"/>
+    </target>
+    
+    <target name="build" depends="init">
+        <exec executable="mxmlc" failonerror="true">
+            <arg line="-source-path=${src.dir}"/>
+            <arg line="-static-link-runtime-shared-libraries=true"/>
+            <arg line="-output=${bin.dir}/RoboEvony.swf"/>
+            <arg line="${src.dir}/RoboEvonyMain.as"/>
+        </exec>
+    </target>
+</project>

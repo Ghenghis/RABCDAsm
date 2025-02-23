@@ -1,0 +1,43 @@
+# Required Components for RABCDAsm Interface
+
+## Core Tools
+1. DMD Compiler
+   - Required for: Building RABCDAsm tools
+   - Download from: https://dlang.org/download.html
+   - Status: Required
+
+2. RABCDAsm Source (v1.18)
+   - Required for: ActionScript bytecode analysis
+   - Download from: https://github.com/CyberShadow/RABCDAsm/archive/refs/tags/v1.18.zip
+   - Extract to: C:\projects\RABCDAsm\Tools\RABCDAsm-1.18
+   - Status: Required
+
+3. FFDEC (v22.0.2)
+   - Required for: Flash decompilation
+   - Download from: https://github.com/jindrapetrik/jpexs-decompiler/releases/tag/version22.0.2
+   - Extract to: C:\projects\RABCDAsm\Tools\ffdec_22.0.2
+   - Status: Required
+
+4. Ghidra (v11.3)
+   - Required for: Binary analysis
+   - Download from: https://github.com/NationalSecurityAgency/ghidra/releases
+   - Extract to: C:\projects\RABCDAsm\Tools\ghidra_11.3
+   - Status: Required
+
+5. Java JDK 23
+   - Required for: Running Ghidra
+   - Already installed at: C:\Program Files\Java\jdk-23
+   - Status: Installed
+
+## Installation Steps
+1. Install DMD Compiler first
+2. Download and extract all required tools to their specified directories
+3. Run the application - it will automatically build RABCDAsm tools
+4. The UI will show error messages for any missing components
+
+## Tool Integration Status
+- [ ] RABCDAsm tools building
+- [ ] FFDEC integration
+- [ ] Ghidra integration
+- [ ] AI chat assistance
+- [ ] Workflow automation
