@@ -29,16 +29,28 @@
    - Already installed at: C:\Program Files\Java\jdk-23
    - Status: Installed and Configured
 
+6. Robobuilder
+   - Required for: SWF Analysis and Rebuilding
+   - Location: C:\projects\RABCDAsm\Tools\robobuilder (Git Submodule)
+   - Repository: https://github.com/Ghenghis/robobuilder
+   - Status: Installed and Configured as Submodule
+
 ## Installation Steps
 1. Install DMD Compiler first
 2. Download and extract all required tools to their specified directories
-3. Run the application - it will automatically build RABCDAsm tools
-4. The UI will show error messages for any missing components
+3. Initialize and update Git submodules:
+   ```bash
+   git submodule init
+   git submodule update
+   ```
+4. Run the application - it will automatically build RABCDAsm tools
+5. The UI will show error messages for any missing components
 
 ## Tool Integration Status
 - [x] RABCDAsm tools building
 - [x] FFDEC integration
 - [x] Ghidra integration
+- [x] Robobuilder integration
 - [ ] AI chat assistance (In Progress)
 - [ ] Workflow automation (Pending)
 
@@ -46,4 +58,5 @@
 1. Added Python development environment settings
 2. Updated tool integration status
 3. Verified all core tools are installed and configured
-4. AI chat assistance integration in progress
+4. Added Robobuilder as Git submodule
+5. AI chat assistance integration in progress
