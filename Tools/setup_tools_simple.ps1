@@ -119,6 +119,7 @@ This directory contains various tools for analyzing and extracting resources fro
 ## Available Tools
 
 1. Resource Hacker (reshacker-cli.bat)
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
    - View and extract resources from PE files
    - Modify resource sections
    - Command-line interface available
@@ -176,6 +177,7 @@ This directory contains various tools for analyzing and extracting resources fro
 
 1. Always scan files with PE-Sieve before extraction
 2. Use Resource Hacker for initial resource enumeration
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 3. PE-Bear helps understand file structure
 4. HxD is useful for raw binary investigation
 5. RcEdit for quick resource modifications
@@ -186,6 +188,7 @@ For additional tools or updates, check the respective GitHub repositories:
 - PE-Bear: https://github.com/hasherezade/pe-bear
 - PE-Sieve: https://github.com/hasherezade/pe-sieve
 - Resource Hacker: http://www.angusj.com/resourcehacker/
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 "@
 
 Set-Content -LiteralPath (Join-Path $toolsDir "TOOLS.md") -Value $docsContent -Force
